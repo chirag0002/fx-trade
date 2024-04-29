@@ -7,19 +7,24 @@ import { User } from 'src/interface/interface';
 
 @Controller('/accounts')
 export class AccountsController {
-    constructor( @InjectModel('User') private readonly userModel: Model<User> ) { }
+    constructor(@InjectModel('User') private readonly userModel: Model<User>) { }
 
     @Post('topup')
     async topUp(@Body() topUpDTO: TopUpDto, @Req() req: Request) {
         const userId = req.user._id
 
-        const newBalance = {
-            currency: topUpDTO.currency,
-            amount: topUpDTO.amount
-        }
-
         const user = await this.userModel.findById(userId)
-        user.balances.push(newBalance);
+
+        const currencyBalance = user.balances.find(balance => balance.currency === topUpDTO.currency);
+
+        if (currencyBalance) currencyBalance.amount += topUpDTO.amount;
+        else {
+            const newBalance = {
+                currency: topUpDTO.currency,
+                amount: topUpDTO.amount
+            }
+            user.balances.push(newBalance);
+        }
 
         await user.save();
 
@@ -27,7 +32,7 @@ export class AccountsController {
     }
 
     @Get('balance')
-    getBalance(@Res() res:Response, @Req() request: Request) {
+    getBalance(@Res() res: Response, @Req() request: Request) {
         const user = request.user
 
         res.status(200).json({
